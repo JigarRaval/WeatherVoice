@@ -59,6 +59,11 @@ function App() {
       setSavedLocations(data.data);
     } catch (err) {
       console.error('Failed to load saved locations:', err);
+      // Fallback to localStorage
+      const localLocations = localStorage.getItem('weathervoice_locations');
+      if (localLocations) {
+        setSavedLocations(JSON.parse(localLocations));
+      }
     }
   };
 
@@ -96,15 +101,66 @@ function App() {
   const handleSaveLocation = async () => {
     if (!weatherData) return;
     try {
-      await saveLocation({
+      const locationData = {
         name: weatherData.location.name,
         country: weatherData.location.country,
         lat: weatherData.location.lat,
         lon: weatherData.location.lon
-      });
-      loadSavedLocations();
+      };
+      
+      const response = await saveLocation(locationData);
+      
+      if (response.success) {
+        loadSavedLocations();
+      } else {
+        // Fallback to localStorage if backend fails
+        const localLocations = JSON.parse(localStorage.getItem('weathervoice_locations') || '[]');
+        
+        // Check if already exists
+        const exists = localLocations.some(loc => 
+          loc.lat === locationData.lat && loc.lon === locationData.lon
+        );
+        
+        if (!exists) {
+          // Add timestamp for ID
+          locationData._id = Date.now().toString();
+          locationData.createdAt = new Date().toISOString();
+          
+          // Limit to 10 locations
+          if (localLocations.length >= 10) {
+            localLocations.shift();
+          }
+          
+          localLocations.push(locationData);
+          localStorage.setItem('weathervoice_locations', JSON.stringify(localLocations));
+          setSavedLocations(localLocations);
+        }
+      }
     } catch (err) {
       console.error('Failed to save location:', err);
+      // Fallback to localStorage
+      const locationData = {
+        name: weatherData.location.name,
+        country: weatherData.location.country,
+        lat: weatherData.location.lat,
+        lon: weatherData.location.lon,
+        _id: Date.now().toString(),
+        createdAt: new Date().toISOString()
+      };
+      
+      const localLocations = JSON.parse(localStorage.getItem('weathervoice_locations') || '[]');
+      const exists = localLocations.some(loc => 
+        loc.lat === locationData.lat && loc.lon === locationData.lon
+      );
+      
+      if (!exists) {
+        if (localLocations.length >= 10) {
+          localLocations.shift();
+        }
+        localLocations.push(locationData);
+        localStorage.setItem('weathervoice_locations', JSON.stringify(localLocations));
+        setSavedLocations(localLocations);
+      }
     }
   };
 
@@ -114,6 +170,11 @@ function App() {
       loadSavedLocations();
     } catch (err) {
       console.error('Failed to delete location:', err);
+      // Fallback to localStorage
+      const localLocations = JSON.parse(localStorage.getItem('weathervoice_locations') || '[]');
+      const filtered = localLocations.filter(loc => loc._id !== id);
+      localStorage.setItem('weathervoice_locations', JSON.stringify(filtered));
+      setSavedLocations(filtered);
     }
   };
 

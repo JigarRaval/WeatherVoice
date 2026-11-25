@@ -3,9 +3,25 @@ export const getEnvironmentalContext = ({ location, lat, lon, provider }) =>
   request(`/api/weather/environment?${qs({ location, lat, lon, provider })}`);
 
 const request = async (path, options = {}) => {
-  const res = await fetch(`${API_URL}${path}`, options);
+  const url = `${API_URL}${path}`;
+  console.log('🌐 API Call:', {
+    method: options.method || 'GET',
+    url: url,
+    body: options.body ? JSON.parse(options.body) : null
+  });
+
+  const res = await fetch(url, options);
   const data = await res.json().catch(() => ({}));
+
+  console.log('📥 API Response:', {
+    status: res.status,
+    ok: res.ok,
+    success: data.success,
+    data: data
+  });
+
   if (!res.ok || !data.success) {
+    console.error('❌ API Error:', data.error || `Request failed (${res.status})`);
     throw new Error(data.error || `Request failed (${res.status})`);
   }
   return data;
